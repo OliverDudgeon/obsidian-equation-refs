@@ -1,35 +1,38 @@
 {
-	"name": "obsidian-math-booster",
-	"version": "2.2.0",
-	"description": "An Obsidian.md plugin that provides a powerful indexing & referencing system for theorems & equations in your vault. Bring LaTeX-like workflow into Obsidian with theorem environments, automatic equation numbering, and more.",
+	"name": "obsidian-equation-refs",
+	"version": "1.0.0",
+	"description": "Auto-number display math equations and resolve block references to their equation labels.",
+	"main": "main.js",
+	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && sass styles.scss styles.css",
-		"dev-style": "sass --watch styles.scss styles.css",
-		"build-style": "sass --watch styles.scss styles.css",
-		"version": "node version-bump.mjs && git add manifest.json versions.json"
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint ."
 	},
-	"keywords": [],
-	"author": "Ryota Ushio",
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"latex",
+		"equation",
+		"reference"
+	],
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/language": "^6.12.3",
+		"@codemirror/state": "^6.0.0",
+		"@codemirror/view": "^6.0.0",
+		"@eslint/js": "9.30.1",
 		"@types/node": "^16.11.6",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"builtin-modules": "3.3.0",
-		"esbuild": "^0.19.4",
-		"obsidian": "latest",
-		"obsidian-mathlinks": "^0.5.1",
-		"obsidian-quick-preview": "latest",
+		"esbuild": "0.25.5",
+		"eslint-plugin-obsidianmd": "0.1.9",
+		"globals": "14.0.0",
+		"jiti": "2.6.1",
 		"tslib": "2.4.0",
-		"typescript": "4.7.4"
+		"typescript": "^5.8.3",
+		"typescript-eslint": "8.35.1"
 	},
 	"dependencies": {
-		"@codemirror/language": "^6.0.0",
-		"@lezer/common": "^1.0.3",
-		"esbuild-plugin-inline-worker": "^0.1.1",
-		"flatqueue": "^2.0.3",
-		"monkey-around": "^2.3.0",
-		"sorted-btree": "^1.8.1"
+		"obsidian": "latest"
 	}
 }

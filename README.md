@@ -1,98 +1,47 @@
-# LaTeX-like Theorem & Equation Referencer for Obsidian
+# Obsidian Equation Refs
 
-> [!important]
-> This plugin had been called **Math Booster** until version 2.1.4, but has been renamed for better clarity and discoverability. A big thank you to those who shared their thoughts [here](https://github.com/RyotaUshio/obsidian-math-booster/issues/210).
+An [Obsidian](https://obsidian.md/) plugin that auto-numbers display-math equations and resolves block references to their equation labels.
 
-**LaTeX-like Theorem & Equation Referencer** is an [Obsidian.md](https://obsidian.md/) plugin that provides a powerful indexing & referencing system for theorems & equations in your vault, bringing $\LaTeX$-like workflow into Obsidian.
+Write maths as usual, and the plugin will:
 
-![Screenshot](https://raw.githubusercontent.com/RyotaUshio/obsidian-math-booster/1c7b106fcfbddccdcda8451de1c21a094994b686/docs/fig/screenshot.png)
+- Render every `$$ ... $$` block with a sequential number (configurable style and prefix/suffix).
+- Replace the text of any internal link of the form `[[note#^block-id]]` that points at a numbered equation with a label like `Eq. 1.3` — in both reading view and live preview.
 
-(The theorem in the screenshot is cited from [Tao, Terence, ed. An introduction to measure theory. Vol. 126. American Mathematical Soc., 2011.](https://terrytao.files.wordpress.com/2012/12/gsm-126-tao5-measure-book.pdf))
+## How it works
 
-## Docs
+Display math blocks are detected via Obsidian's metadata cache; numbers are recomputed per file whenever the cache changes. The number is injected as `\tag{...}` into the math source before MathJax renders it, so the rendered output is genuinely numbered rather than overlaid.
 
-https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/
+## Settings
 
-## Features
+| Setting | Description |
+| --- | --- |
+| **Number prefix / suffix** | Wraps the auto-generated number (e.g. `(`, `)`). |
+| **First equation number** | Starting value for the per-note counter. |
+| **Number style** | `arabic`, `alph`, `Alph`, `roman`, or `Roman`. |
+| **Reference prefix / suffix** | Wraps the label used when rewriting link text. |
+| **Number `align` line-by-line** | When on, each line of an `align` environment gets its own number. |
 
-- [Theorem environments](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/theorem-callouts/theorem-callouts.html)
-- [Automatic equation numbering](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/equations.html)
-- [Clever referencing](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/clever-referencing.html)
-- [Search & link autocomplete](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/search-&-link-autocomplete/search-&-link-autocomplete.html)
-  - [Custom link autocomplete](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/search-&-link-autocomplete/custom-link-autocomplete.html)
-    - Easily find & insert link to theorems & equations.
-    - Filter theorems & equations based on their locations (*entire vault/recent notes/active note*)
-  - [Search modal](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/search-&-link-autocomplete/search-modal.html): more control & flexibility than editor autocomplete, including *Dataview queries*
-- [Proof environment (experimental)](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/proof-environment.html)
+## Manual tags
 
-> [!note]
-> For more modular and focused enhancements, some features are planned to be transitioned from this plugin to dedicated, specialized plugins in the near future. Below are the upcoming changes:
-> 
-> #### Transitioning to [**Better Math in Callouts & Blockquotes**](https://github.com/RyotaUshio/obsidian-math-in-callout)
-> 
-> - Rendering equations inside callouts
-> - Multi-line equation support inside blockquotes
-> 
-> #### Transitioning to [**Rendered Block Link Suggestions**](https://github.com/RyotaUshio/obsidian-rendered-block-link-suggestions)
-> 
-> - [Render equations in Obsidian's built-in link suggestions](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/search-&-link-autocomplete/enhancing-obsidian's-built-in-link-autocomplete.html)
+If a math block contains its own `\tag{...}`, the plugin leaves it alone — that block is excluded from auto-numbering and the counter skips it.
 
-Theorems & equations can be **dynamically/automatically numbered**, while you can statically/manually number them if you want.
-The number prefix can be either explicitly specified or automatically inferred from the note title.
+## Block links
 
-Thanks to the integration with [MathLinks](https://github.com/zhaoshenzhai/obsidian-mathlinks), links to theorems/equations are displayed with their title or number, similarly to the `cleveref` package in LaTeX. (No need for manually typing aliases!)
+Place an anchor on an equation by appending `^id` after the closing `$$`:
 
-You can also customize the appearance of theorem callouts using CSS snippets; see [here](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/theorem-callouts/styling.html).
+```
+$$
+E = mc^2
+$$
+^einstein
+```
 
-## Companion plugins
-
-Here's a list of other math-related plugins I've developed:
-
-- [No More Flickering Inline Math](https://github.com/RyotaUshio/obsidian-inline-math)
-- [Better Math in Callouts & Blockquotes](https://github.com/RyotaUshio/obsidian-math-in-callout)
-- [MathJax Preamble Manager](https://github.com/RyotaUshio/obsidian-mathjax-preamble-manager)
-- [Auto-\\displaystyle Inline Math](https://github.com/RyotaUshio/obsidian-auto-displaystyle-inline-math)
+Then reference it from anywhere with `[[that-note#^einstein]]`. The link will render as `Eq. 1` (or whatever the resolved label is).
 
 ## Installation
 
-You can install this plugin via Obsidian's community plugin browser (see [here](https://help.obsidian.md/Extending+Obsidian/Community+plugins#Install+a+community+plugin) for instructions).
+Install via Obsidian's community plugin browser, or load the latest build from this repo's releases.
 
-Also, you can test the latest beta release using [BRAT](https://github.com/TfTHacker/obsidian42-brat):
+## Credits
 
-1.  Install BRAT and enable it.
-2.  Go to **Options**. In the **Beta Plugin List** section, click on the **Add Beta plugin** button.
-3.  Copy and paste `RyotaUshio/obsidian-latex-theorem-equation-referencer` in the pop-up prompt and click on **Add Plugin**.
-4.  _(Optional)_ Turn on **Auto-update plugins at startup** at the top of the page.
-5.  Go to **Community plugins > Installed plugins**. You will find "LaTeX-like Theorem & Equation Referencer" in the list. Click on the toggle button to enable it.
-Since version 2 is still beta, it's not on the community plugin browser yet.
-
-## Dependencies
-
-### Obsidian plugins
-
-This plugin requires [MathLinks](https://github.com/zhaoshenzhai/obsidian-mathlinks) version 0.5.3 or higher installed to work properly ([Clever referencing](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/clever-referencing.html)).
-
-In version 2, [Dataview](https://github.com/blacksmithgu/obsidian-dataview) is no longer required. But I strongly recommend installing it because it enhances this plugin's [search](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/search-&-link-auto-completion/search-modal.html) functionality significantly.
-
-### Fonts
-
-You have to install [CMU Serif](https://www.cufonfonts.com/font/cmu-serif) to get some of the [preset styles for theorem callouts](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/theorem-callouts/styling.html) displayed properly.
-
-Additionally, [Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) is required for render the preset styles properly in Japanese.
-
-## Contributing
-
-- Feel free to create a new issue if something is not working well. Questions are also welcomed.
-- Please send a pull request if you have any ideas to improve this plugin and our experience!
-- Contribution to the docs is also highly appreciated: see [here](https://github.com/RyotaUshio/obsidian-latex-theorem-equation-referencer-docs).
-
-## Roadmaps
-
-- Import from LaTeX: ArXiv papers, research/literature notes written in LaTeX, ...
-- Export to LaTeX: Write research notes in Obsidian, and then export them into LaTeX.
-
-## Support development
-
-If you find this plugin useful, please support my work by buying me a coffee!
-
-<a href="https://www.buymeacoffee.com/ryotaushio" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+This plugin is a focused fork of [obsidian-latex-theorem-equation-referencer](https://github.com/RyotaUshio/obsidian-latex-theorem-equation-referencer) by Ryota Ushio. All the theorem / callout / proof functionality has been removed; only the equation-reference feature remains, rebuilt for reliability.
