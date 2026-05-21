@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-equation-refs",
 	"name": "Obsidian Equation Refs",
-	"version": "1.0.0",
+	"version": "3.0.0",
 	"minAppVersion": "1.5.0",
 	"description": "Auto-number display math equations and resolve block references to their equation labels.",
 	"author": "Oliver Dudgeon",
