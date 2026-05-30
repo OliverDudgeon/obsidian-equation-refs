@@ -69,16 +69,18 @@ class EquationNumberChild extends MarkdownRenderChild {
 			return;
 		}
 
-		if (this.lastApplied === equation.numberLabel) return;
-		this.lastApplied = equation.numberLabel;
-
 		const tagged = insertTagInMathText(equation.mathText, equation.numberLabel, this.plugin.settings.lineByLine);
+
+		// Dedupe on the exact tagged source: this also re-renders when the equation body
+		// changes while its number stays the same (e.g. an external edit to the file).
+		if (this.lastApplied === tagged) return;
 
 		try {
 			const rendered = renderMath(tagged, true);
 			this.containerEl.replaceChildren(...Array.from(rendered.childNodes));
 			this.containerEl.setAttribute("data-equation-number", equation.numberLabel);
 			void finishRenderMath();
+			this.lastApplied = tagged;
 		} catch (err) {
 			console.warn("[obsidian-equation-refs] failed to render numbered equation", err);
 		}

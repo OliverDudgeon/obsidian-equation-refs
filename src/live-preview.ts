@@ -79,14 +79,19 @@ function equationNumberPlugin(plugin: ObsidianEquationRefs) {
 						const label = equation?.numberLabel ?? null;
 						if (label === null) {
 							container.removeAttribute("data-equation-number");
+							container.removeAttribute("data-eqr-rendered");
 							continue;
 						}
-						if (container.getAttribute("data-equation-number") === label) continue;
 
 						const tagged = insertTagInMathText(equation!.mathText, label, plugin.settings.lineByLine);
+						// Dedupe on the exact tagged source rather than the label alone, so a changed
+						// equation body re-renders even when its number is unchanged.
+						if (container.getAttribute("data-eqr-rendered") === tagged) continue;
+
 						const rendered = renderMath(tagged, true);
 						container.replaceChildren(...Array.from(rendered.childNodes));
 						container.setAttribute("data-equation-number", label);
+						container.setAttribute("data-eqr-rendered", tagged);
 					}
 
 					void finishRenderMath();
