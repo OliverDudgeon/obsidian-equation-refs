@@ -1,4 +1,4 @@
-import { Component, Events, TAbstractFile, TFile, debounce } from "obsidian";
+import { CachedMetadata, Component, Events, TAbstractFile, TFile, debounce } from "obsidian";
 import type ObsidianEquationRefs from "./main";
 import { formatNumberLabel, formatRefLabel } from "./numbering";
 import { hasManualTag } from "./tag-injection";
@@ -12,6 +12,9 @@ export interface IndexedEquation {
 	startLine: number;
 	/** 0-based inclusive end line of the `$$` closer in the source file. */
 	endLine: number;
+	/** Source offsets delimiting the math section. */
+	startOffset: number;
+	endOffset: number;
 	/** Math source between the `$$` delimiters, with delimiters trimmed. */
 	mathText: string;
 	/** True if the math source already includes a manual `\tag{...}`. */
@@ -37,19 +40,28 @@ interface EquationIndexEventMap {
  */
 export class EquationIndex extends Component {
 	private readonly perFile = new Map<string, IndexedEquation[]>();
+	private readonly pendingReads = new Map<string, object>();
 	private readonly events = new Events();
 	private readyResolver: (() => void) | null = null;
 	private readyPromise: Promise<void> = new Promise((resolve) => {
 		this.readyResolver = resolve;
 	});
 
-	private readonly emitChanged = debounce(
-		(filePath: string) => {
-			this.events.trigger("index-changed", filePath);
+	private readonly changedPaths = new Set<string>();
+	private readonly flushChanged = debounce(
+		() => {
+			const paths = Array.from(this.changedPaths);
+			this.changedPaths.clear();
+			for (const filePath of paths) this.events.trigger("index-changed", filePath);
 		},
 		150,
 		false,
 	);
+
+	private emitChanged(filePath: string): void {
+		this.changedPaths.add(filePath);
+		this.flushChanged();
+	}
 
 	constructor(private readonly plugin: ObsidianEquationRefs) {
 		super();
@@ -59,8 +71,9 @@ export class EquationIndex extends Component {
 		const { app } = this.plugin;
 
 		this.registerEvent(
-			app.metadataCache.on("changed", (file) => {
-				this.indexFile(file).catch((err) => this.logFailure(file.path, err));
+			app.metadataCache.on("changed", (file, content, cache) => {
+				this.pendingReads.delete(file.path);
+				if (file.extension === "md") this.indexSnapshot(file.path, content, cache);
 			}),
 		);
 
@@ -70,6 +83,7 @@ export class EquationIndex extends Component {
 
 		this.registerEvent(
 			app.vault.on("rename", (file, oldPath) => {
+				this.pendingReads.delete(oldPath);
 				if (this.perFile.has(oldPath)) {
 					const entries = this.perFile.get(oldPath);
 					this.perFile.delete(oldPath);
@@ -98,7 +112,10 @@ export class EquationIndex extends Component {
 	}
 
 	override onunload(): void {
+		this.flushChanged.cancel();
+		this.changedPaths.clear();
 		this.perFile.clear();
+		this.pendingReads.clear();
 	}
 
 	/** Resolves once the initial vault scan completes. */
@@ -110,19 +127,31 @@ export class EquationIndex extends Component {
 	async indexFile(file: TFile): Promise<void> {
 		if (file.extension !== "md") return;
 
+		const filePath = file.path;
+		const request = {};
+		this.pendingReads.set(filePath, request);
 		const cache = this.plugin.app.metadataCache.getFileCache(file);
-		const mathSections = cache?.sections?.filter((section) => section.type === "math") ?? [];
+		const mtime = file.stat.mtime;
 
-		if (mathSections.length === 0) {
-			if (this.perFile.delete(file.path)) this.emitChanged(file.path);
-			return;
-		}
-
-		let content: string;
 		try {
-			content = await this.plugin.app.vault.cachedRead(file);
+			const content = await this.plugin.app.vault.cachedRead(file);
+			// A metadata event, rename, deletion, or newer read supersedes this snapshot.
+			if (this.pendingReads.get(filePath) !== request) return;
+			if (file.path !== filePath || file.stat.mtime !== mtime ||
+				this.plugin.app.metadataCache.getFileCache(file) !== cache) return;
+			this.indexSnapshot(filePath, content, cache);
 		} catch (err) {
-			this.logFailure(file.path, err);
+			this.logFailure(filePath, err);
+		} finally {
+			if (this.pendingReads.get(filePath) === request) this.pendingReads.delete(filePath);
+		}
+	}
+
+	/** Parse a source snapshot; metadata events supply source and metadata atomically. */
+	private indexSnapshot(filePath: string, content: string, cache: CachedMetadata | null): void {
+		const mathSections = cache?.sections?.filter((section) => section.type === "math") ?? [];
+		if (mathSections.length === 0) {
+			if (this.perFile.delete(filePath)) this.emitChanged(filePath);
 			return;
 		}
 
@@ -138,10 +167,12 @@ export class EquationIndex extends Component {
 			const blockId = section.id ?? null;
 
 			const entry: IndexedEquation = {
-				filePath: file.path,
+				filePath,
 				blockId,
 				startLine: section.position.start.line,
 				endLine: section.position.end.line,
+				startOffset,
+				endOffset,
 				mathText,
 				manualTag,
 				numberLabel: null,
@@ -157,8 +188,8 @@ export class EquationIndex extends Component {
 			entries.push(entry);
 		}
 
-		this.perFile.set(file.path, entries);
-		this.emitChanged(file.path);
+		this.perFile.set(filePath, entries);
+		this.emitChanged(filePath);
 	}
 
 	/** Re-index every markdown file in the vault. */
@@ -184,11 +215,16 @@ export class EquationIndex extends Component {
 		return this.perFile.get(filePath)?.find((entry) => entry.blockId === blockId);
 	}
 
-	/** Find an equation whose source spans the given 0-based line. */
-	getByLine(filePath: string, line: number): IndexedEquation | undefined {
-		return this.perFile
+	/** Find an equation at a line, optionally requiring a match against the rendered note source. */
+	getByLine(filePath: string, line: number, sourceText?: string): IndexedEquation | undefined {
+		const entry = this.perFile
 			.get(filePath)
 			?.find((entry) => line >= entry.startLine && line <= entry.endLine);
+		if (entry && sourceText !== undefined &&
+			stripDollarDelimiters(sourceText.slice(entry.startOffset, entry.endOffset)) !== entry.mathText) {
+			return undefined;
+		}
+		return entry;
 	}
 
 	on<K extends keyof EquationIndexEventMap>(
@@ -199,6 +235,7 @@ export class EquationIndex extends Component {
 	}
 
 	private handleDelete(file: TAbstractFile): void {
+		this.pendingReads.delete(file.path);
 		if (this.perFile.delete(file.path)) this.emitChanged(file.path);
 	}
 

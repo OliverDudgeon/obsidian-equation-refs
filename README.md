@@ -42,6 +42,14 @@ Then reference it from anywhere with `[[that-note#^einstein]]`. The link will re
 
 Install via Obsidian's community plugin browser, or load the latest build from this repo's releases.
 
+## Wider hover previews
+
+Equation links use Obsidian's Page preview. Preview width is controlled by Obsidian and your theme, independently of this plugin.
+
+To widen note previews, open **Settings → Appearance → CSS snippets → Open snippets folder**, copy [wide-note-previews.css](snippets/wide-note-previews.css) into that folder, then reload the snippets list and enable it. See Obsidian's [CSS snippet instructions](https://help.obsidian.md/snippets).
+
+The snippet uses your theme's readable note width (`--file-line-width`), adds 80px for padding, and caps the preview at the window width minus 32px. It affects note previews, including block links, and leaves image and PDF previews alone. If your theme has unusually large margins, increase the 80px allowance. If you disable **Readable line length** and want a wider preview, replace the `--popover-width` value with `calc(100vw - 32px)`. A CSS snippet cannot automatically match the width of the particular split pane that opened the preview.
+
 ## Credits
 
 This plugin is a focused fork of [obsidian-latex-theorem-equation-referencer](https://github.com/RyotaUshio/obsidian-latex-theorem-equation-referencer) by Ryota Ushio. All the theorem / callout / proof functionality has been removed; only the equation-reference feature remains, rebuilt for reliability.

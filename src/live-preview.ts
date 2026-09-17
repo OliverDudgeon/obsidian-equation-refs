@@ -9,7 +9,7 @@ import {
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
-import { MarkdownView, TFile, editorInfoField, finishRenderMath, renderMath } from "obsidian";
+import { Keymap, MarkdownView, TFile, editorInfoField, finishRenderMath, renderMath } from "obsidian";
 import type ObsidianEquationRefs from "./main";
 import { insertTagInMathText } from "./tag-injection";
 import { resolveEquationByLinktext } from "./reading-view";
@@ -64,6 +64,7 @@ function equationNumberPlugin(plugin: ObsidianEquationRefs) {
 			private apply(view: EditorView): void {
 				if (!this.file) return;
 				const file = this.file;
+				const sourceText = view.state.doc.toString();
 				try {
 					const containers = view.contentDOM.querySelectorAll<HTMLElement>(
 						':scope > .cm-embed-block.math > mjx-container.MathJax[display="true"]',
@@ -75,7 +76,7 @@ function equationNumberPlugin(plugin: ObsidianEquationRefs) {
 						const lineNumber = lineNumberForElement(view, container);
 						if (lineNumber === null) continue;
 
-						const equation = plugin.equationIndex.getByLine(file.path, lineNumber);
+						const equation = plugin.equationIndex.getByLine(file.path, lineNumber, sourceText);
 						const label = equation?.numberLabel ?? null;
 						if (label === null) {
 							container.removeAttribute("data-equation-number");
@@ -105,23 +106,51 @@ function equationNumberPlugin(plugin: ObsidianEquationRefs) {
 
 /** Widget rendering the resolved reference label (e.g. "Eq. 1.3") in place of a wiki link. */
 class EquationLabelWidget extends WidgetType {
-	constructor(private readonly label: string) {
+	constructor(
+		private readonly label: string,
+		private readonly plugin: ObsidianEquationRefs,
+		private readonly linktext: string,
+		private readonly sourcePath: string,
+	) {
 		super();
 	}
 
 	override eq(other: EquationLabelWidget): boolean {
-		return other.label === this.label;
+		return other.label === this.label && other.linktext === this.linktext &&
+			other.sourcePath === this.sourcePath && other.plugin === this.plugin;
 	}
 
 	override toDOM(): HTMLElement {
-		const span = document.createElement("span");
-		span.addClass("cm-underline");
+		// Match Obsidian's native link structure so themes supply the link color,
+		// weight, cursor, and hover decoration.
+		const link = document.createElement("span");
+		link.addClass("cm-hmd-internal-link");
+		const span = document.createElement("a");
+		span.addClass("cm-underline", "internal-link");
+		span.setAttribute("href", this.linktext);
+		span.setAttribute("data-href", this.linktext);
 		span.setText(this.label);
-		return span;
+		link.appendChild(span);
+		// A replacement widget is not a native editor link. Keep the editor from
+		// moving its selection (and removing this widget) before click can fire.
+		link.addEventListener("mousedown", (event) => {
+			if (event.button !== 0 && event.button !== 1) return;
+			event.preventDefault();
+			event.stopPropagation();
+		});
+		const open = (event: MouseEvent) => {
+			if (event.button !== 0 && event.button !== 1) return;
+			event.preventDefault();
+			event.stopPropagation();
+			void this.plugin.app.workspace.openLinkText(this.linktext, this.sourcePath, Keymap.isModEvent(event));
+		};
+		link.addEventListener("click", open);
+		link.addEventListener("auxclick", open);
+		return link;
 	}
 
 	override ignoreEvent(): boolean {
-		return false;
+		return true;
 	}
 }
 
@@ -159,7 +188,7 @@ function linkLabelPlugin(plugin: ObsidianEquationRefs) {
 						builder.add(
 							link.from,
 							link.to,
-							Decoration.replace({ widget: new EquationLabelWidget(equation.refLabel) }),
+							Decoration.replace({ widget: new EquationLabelWidget(equation.refLabel, plugin, link.text, file.path) }),
 						);
 					}
 				} catch (err) {

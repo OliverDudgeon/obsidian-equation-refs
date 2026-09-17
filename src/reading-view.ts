@@ -38,6 +38,7 @@ export function createReadingViewPostProcessor(plugin: ObsidianEquationRefs) {
  */
 class EquationNumberChild extends MarkdownRenderChild {
 	private lastApplied: string | null = null;
+	private sourceMathText: string | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -61,7 +62,9 @@ class EquationNumberChild extends MarkdownRenderChild {
 	}
 
 	private update(): void {
-		if (!this.containerEl.isConnected) return;
+		// Obsidian post-processes new sections before attaching them and detaches
+		// offscreen sections for reuse. Their render children remain loaded, so
+		// connectivity cannot determine whether a numbering update is needed.
 
 		const equation = this.resolveEquation();
 		if (!equation || equation.numberLabel === null) {
@@ -95,7 +98,14 @@ class EquationNumberChild extends MarkdownRenderChild {
 	private resolveEquation(): IndexedEquation | undefined {
 		const section = this.ctx.getSectionInfo(this.containerEl);
 		if (!section) return undefined;
-		return this.plugin.equationIndex.getByLine(this.file.path, section.lineStart);
+		// Keep this rendered section's identity: the context's full text can advance
+		// to a new revision before Obsidian retires the old math DOM.
+		if (this.sourceMathText === null) {
+			const source = section.text.split("\n").slice(section.lineStart, section.lineEnd + 1).join("\n");
+			this.sourceMathText = source.match(/\$\$([\s\S]*?)\$\$/)?.[1]?.trim() ?? null;
+		}
+		const equation = this.plugin.equationIndex.getByLine(this.file.path, section.lineStart);
+		return equation && equation.mathText === this.sourceMathText ? equation : undefined;
 	}
 }
 

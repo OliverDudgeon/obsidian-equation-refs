@@ -1,0 +1,6 @@
+/* Optional Obsidian snippet: widen note previews to the readable note width,
+   with 80px of room for padding. Enable under Appearance > CSS snippets. */
+.popover.hover-popover:has(> .markdown-embed) {
+	--popover-width: min(calc(var(--file-line-width, 700px) + 80px), calc(100vw - 32px));
+	max-width: calc(100vw - 32px);
+}
